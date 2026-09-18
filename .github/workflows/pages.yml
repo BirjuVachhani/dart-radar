@@ -1,0 +1,57 @@
+# Publish website/ to GitHub Pages.
+#
+# The site is plain HTML, CSS and images, so there is nothing to build: the
+# directory is uploaded as-is. Enable it once under Settings > Pages by setting
+# "Source" to "GitHub Actions"; without that the deploy step fails with a 404.
+
+name: Publish website
+
+on:
+  push:
+    branches: [main]
+    # Only the site is published here, so a code-only push should not spend a
+    # deploy. Includes this workflow itself, so a change to it is exercised.
+    paths:
+      - 'website/**'
+      - '.github/workflows/pages.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  # deploy-pages authenticates to Pages with an OIDC token, not a PAT.
+  pages: write
+  id-token: write
+
+# Let a queued run wait for one in flight rather than cancelling it: cancelling
+# a deploy mid-flight can leave the site on a half-published state.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+
+      # A Jekyll build is the Pages default and would drop any file or folder
+      # whose name starts with an underscore. Nothing here relies on Jekyll, so
+      # .nojekyll makes the upload byte-for-byte what gets served.
+      - name: Disable Jekyll processing
+        run: touch website/.nojekyll
+
+      - name: Upload site
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: website
+
+      - name: Deploy
+        id: deployment
+        uses: actions/deploy-pages@v4

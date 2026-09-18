@@ -1,0 +1,52 @@
+# Template for config.mk, which holds the signing, notarization and upload
+# credentials the Makefile needs. Copy it and fill in your own values:
+#
+#     cp config.mk.example config.mk
+#     make prepare
+#
+# config.mk is gitignored. Environment variables win over it, for CI.
+# `make app` and `make install` need nothing here; only the notarized `make
+# dmg` and `make release` do.
+
+# ------------------------------- Apple ID -------------------------------
+#
+# The Apple ID that owns the Developer ID certificate, plus an app-specific
+# password for it (appleid.apple.com > Sign-In and Security > App-Specific
+# Passwords). notarytool will not accept the account password.
+
+APPLE_EMAIL				:= you@example.com
+APP_SPECIFIC_PASSWORD	:= xxxx-xxxx-xxxx-xxxx
+
+# ------------------------------ Certificate -----------------------------
+#
+# CERT_PASSWORD is the export password of secrets/Developer ID Application.p12
+# (Keychain Access > right-click the "Developer ID Application" identity >
+# Export, which asks you to set one). KEYCHAIN_PASSWORD is invented here: it
+# only ever protects the throwaway build keychain `make prepare` creates.
+
+CERT_PASSWORD			:= change-me
+KEYCHAIN_PASSWORD		:= change-me
+
+# ------------------------------ Cloudflare R2 ---------------------------
+#
+# `make release` uploads the notarized DMG here. Create the credentials in the
+# Cloudflare dashboard under R2 > API > "Manage API tokens" > "Create API
+# token": choose "Object Read & Write" and scope it to this one bucket. Copy
+# the access key pair it shows once, and take the account id from the S3
+# endpoint on the same screen (https://<account-id>.r2.cloudflarestorage.com).
+
+R2_ACCOUNT_ID			:= 0123456789abcdef0123456789abcdef
+R2_ACCESS_KEY_ID		:= change-me
+R2_SECRET_ACCESS_KEY	:= change-me
+R2_BUCKET				:= artifacts
+# Folder inside the bucket. The DMG lands at
+# https://artifacts.birju.dev/$(R2_FOLDER)/DartRadar.dmg (fixed, unversioned).
+# website/index.html hardcodes that exact URL, so the two must agree.
+R2_FOLDER				:= dartradar
+# --------------------------- Overrides for a fork -----------------------
+#
+# Uncomment to sign under your own Apple Developer account.
+#
+# TEAM_ID				:= ABCDE12345
+# BUNDLE_ID				:= com.example.dartradar
+# DEVID_APP_IDENTITY	:= Developer ID Application: Your Name (ABCDE12345)

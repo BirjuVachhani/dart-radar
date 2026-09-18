@@ -1,0 +1,106 @@
+name: DartRadar
+options:
+  bundleIdPrefix: dev.birju
+  deploymentTarget:
+    macOS: "14.0"
+settings:
+  base:
+    SWIFT_VERSION: "5.0"
+    # Ad-hoc by default so a plain `xcodebuild` works with no certificate. The
+    # Makefile re-signs the built bundle with the Developer ID identity, which
+    # is what produces a notarizable app.
+    CODE_SIGN_IDENTITY: "-"
+    CODE_SIGN_STYLE: Manual
+    # Version of record: `make` reads MARKETING_VERSION / CURRENT_PROJECT_VERSION
+    # straight out of this file, so bumping here is the whole release bump.
+    MARKETING_VERSION: "1.0.0"
+    CURRENT_PROJECT_VERSION: "1"
+packages:
+  # Sparkle 2.x, the auto-update framework. Pulled with SPM rather than
+  # CocoaPods (which is how ../moxie gets it) because this is a plain Xcode
+  # project with no pod setup. `make appcast` signs each release with the
+  # Ed25519 key whose public half is SUPublicEDKey below.
+  Sparkle:
+    url: https://github.com/sparkle-project/Sparkle
+    from: "2.6.0"
+targets:
+  DartRadar:
+    type: application
+    platform: macOS
+    sources:
+      - DartRadar
+      # Icon Composer document (Xcode 26+). Declared as a file rather than a
+      # group so actool compiles it whole; ASSETCATALOG_COMPILER_APPICON_NAME
+      # below names it.
+      - path: AppIcon.icon
+        type: file
+        buildPhase: resources
+    dependencies:
+      - package: Sparkle
+    settings:
+      base:
+        # Sparkle needs keys Xcode's generated plist cannot express:
+        # INFOPLIST_KEY_* only honours Xcode's own allowlist (SUFeedURL and
+        # SUPublicEDKey were silently dropped), and it has no way to write a
+        # real boolean or integer. So the plist is a file, generated from the
+        # `info:` block below.
+        GENERATE_INFOPLIST_FILE: NO
+        PRODUCT_BUNDLE_IDENTIFIER: dev.birju.dartradar
+        # The user-visible name, so the bundle is "Dart Radar.app" and Finder,
+        # the menu bar and the About box all agree. ProcessMonitor's
+        # ownBundleMarker hardcodes this string to filter the app out of its own
+        # process list: change one and change the other.
+        PRODUCT_NAME: Dart Radar
+        INFOPLIST_KEY_CFBundleDisplayName: Dart Radar
+        # PRODUCT_MODULE_NAME defaults to PRODUCT_NAME with the space mangled to
+        # an underscore ("Dart_Radar"), which is what `@testable import` would
+        # then have to spell. Pinned so the Swift module stays DartRadar.
+        PRODUCT_MODULE_NAME: DartRadar
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        # Notarization requires the hardened runtime. The app shells out to
+        # /bin/ps and claims no restricted entitlement, so it needs no
+        # exception entitlements and no provisioning profile.
+        ENABLE_HARDENED_RUNTIME: YES
+    info:
+      path: DartRadar/Info.plist
+      properties:
+        CFBundleDisplayName: Dart Radar
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        # Read back off the built bundle by `make appcast` to fill the feed's
+        # sparkle:minimumSystemVersion, so it can never drift from what shipped.
+        LSMinimumSystemVersion: $(MACOSX_DEPLOYMENT_TARGET)
+        LSApplicationCategoryType: public.app-category.developer-tools
+        # Sparkle. SUFeedURL must match APPCAST_URL in the Makefile, and
+        # SUPublicEDKey is the Ed25519 public half of
+        # secrets/sparkle_ed25519_private_key, which signs every release in
+        # `make appcast`. A mismatch means no installed copy ever accepts an
+        # update. This is the same key ../moxie uses: Sparkle's own generate_keys
+        # states one signing key covers however many apps you embed it in.
+        SUFeedURL: https://artifacts.birju.dev/dartradar/appcast.xml
+        SUPublicEDKey: NotmE3pXOSDEmev6AmQ6pMK3MdDUcc3PI0wo17Se0Fo=
+        # Check hourly in the background, but never install without asking.
+        SUEnableAutomaticChecks: true
+        SUScheduledCheckInterval: 3600
+        SUAutomaticallyUpdate: false
+  DartRadarTests:
+    type: bundle.unit-test
+    platform: macOS
+    sources: [DartRadarTests]
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+        # XcodeGen derives TEST_HOST from the TARGET name (DartRadar), but the
+        # built product is named by PRODUCT_NAME ("Dart Radar.app"), so the
+        # generated default points at a path that does not exist and the test
+        # action fails to launch. Spelled out here to match the real product.
+        TEST_HOST: $(BUILT_PRODUCTS_DIR)/Dart Radar.app/Contents/MacOS/Dart Radar
+    dependencies:
+      - target: DartRadar
+schemes:
+  DartRadar:
+    build:
+      targets:
+        DartRadar: all
+    test:
+      targets: [DartRadarTests]

@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dart Radar: see every Dart process on your Mac</title>
+<meta name="description" content="Every Dart and Flutter process running on your Mac, what each one really is, which project it belongs to, and what it costs you. Native, tiny, free.">
+<link rel="icon" type="image/png" href="app_icon.png">
+<link rel="apple-touch-icon" href="app_icon.png">
+<meta name="theme-color" content="#fbfbfb" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#121212" media="(prefers-color-scheme: dark)">
+<meta property="og:title" content="Dart Radar">
+<meta property="og:description" content="Every Dart and Flutter process running on your Mac, and what it costs you.">
+<meta property="og:type" content="website">
+<meta property="og:image" content="app_icon.png">
+<meta name="twitter:card" content="summary_large_image">
+<script>
+  (function () {
+    var root = document.documentElement;
+
+    // Without light-dark() the stylesheet has only its flat dark fallback, so
+    // there is no second theme to reach. Leave the attribute unset and the
+    // toggle stays hidden. See the @supports block in style.css.
+    if (!window.CSS || !CSS.supports('color', 'light-dark(#000, #fff)')) return;
+
+    var stored = null;
+    try {
+      stored = localStorage.getItem('dartradar-theme');
+    } catch (e) {
+      // Storage blocked, as Safari does in private browsing. Fall through to
+      // the system preference.
+    }
+
+    root.dataset.theme =
+      stored === 'light' || stored === 'dark'
+        ? stored
+        : matchMedia('(prefers-color-scheme: light)').matches
+          ? 'light'
+          : 'dark';
+
+    root.classList.add('can-theme');
+  })();
+</script>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="page page-home">
+
+  <header class="site-header">
+    <a class="brand" href="/" aria-label="Dart Radar">
+      <img class="brand-mark" src="app_icon.png" width="34" height="34" alt="">
+      <span class="brand-word">Dart Radar</span>
+    </a>
+    <nav class="site-nav">
+      <button class="pill pill-ghost theme-toggle" type="button" aria-label="Switch theme">
+        <svg class="icon-sun" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" aria-hidden="true">
+          <circle cx="8" cy="8" r="3.1"/>
+          <path d="M8 2.8V1.5M8 13.2v1.3M13.2 8h1.3M2.8 8H1.5"/>
+          <path d="M11.68 4.32l.92-.92M4.32 11.68l-.92.92M11.68 11.68l.92.92M4.32 4.32l-.92-.92"/>
+        </svg>
+        <svg class="icon-moon" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M14 8.5A6 6 0 1 1 7.5 2 4.7 4.7 0 0 0 14 8.5Z"/>
+        </svg>
+      </button>
+    </nav>
+  </header>
+
+  <main class="split">
+
+    <div class="col-copy">
+
+      <div class="hero">
+        <h1 class="headline">See every Dart process on your Mac, and what it is costing you</h1>
+        <div class="cta">
+          <a class="download" href="https://artifacts.birju.dev/dartradar/DartRadar.dmg">
+            <svg width="17.142857142857142" height="20" viewBox="0 0 24 28" xmlns="http://www.w3.org/2000/svg" fill="currentColor" aria-hidden="true">
+              <path d="M19.05 21.28c-.98.95-2.05.86-3.08.41-1.07-.46-2.09-.48-3.24 0-1.44.62-2.2.44-3.06-.41C4.79 16.25 5.51 8.59 11.05 8.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.09zM14 8.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z"/>
+            </svg>
+            <span>Download for macOS</span>
+          </a>
+        </div>
+        <p class="caption">Free. Apple Silicon and Intel, macOS 14 or later</p>
+      </div>
+
+      <ul class="features">
+        <li class="feature"><span class="feature-label">Finds everything</span><span class="feature-desc">dart, dartvm, dartaotruntime, flutter_tester and puro, every two seconds</span></li>
+        <li class="feature"><span class="feature-label">Real names</span><span class="feature-desc">Frontend Compiler (Flutter), not another row called dartaotruntime</span></li>
+        <li class="feature"><span class="feature-label">Project aware</span><span class="feature-desc">walks up to the nearest pubspec.yaml, click to reveal it in Finder</span></li>
+        <li class="feature"><span class="feature-label">Knows your editor</span><span class="feature-desc">asks the Dart Tooling Daemon which IDE window owns the rest</span></li>
+        <li class="feature"><span class="feature-label">CPU and memory</span><span class="feature-desc">per process, sorted so the worst offender sits on top</span></li>
+        <li class="feature"><span class="feature-label">One-click quit</span><span class="feature-desc">a clean SIGTERM, and the row is gone</span></li>
+      </ul>
+
+    </div>
+
+    <div class="shots">
+      <div class="shot">
+        <img src="shots/01-dart-processes.webp" width="1400" height="1161" alt="Dart Radar, every Dart process with CPU and memory" loading="eager" decoding="async">
+      </div>
+      <div class="shot">
+        <img src="shots/02-menu-bar.webp" width="1400" height="1161" alt="Dart Radar, lives in the menu bar" loading="eager" decoding="async">
+      </div>
+    </div>
+
+  </main>
+
+  <footer class="colophon">
+    <span>Built by <a class="colophon-link" href="https://birju.dev" rel="me noopener noreferrer" target="_blank">Birju Vachhani</a></span>
+  </footer>
+
+</div>
+
+<script type="module">
+  const toggle = document.querySelector('.theme-toggle');
+  const root = document.documentElement;
+  const system = matchMedia('(prefers-color-scheme: dark)');
+  const KEY = 'dartradar-theme';
+  const themeColor = { light: '#fbfbfb', dark: '#121212' };
+
+  function stored() {
+    try { return localStorage.getItem(KEY); } catch { return null; }
+  }
+
+  function apply(theme) {
+    root.dataset.theme = theme;
+    toggle?.setAttribute(
+      'aria-label',
+      theme === 'dark' ? 'Switch to the light theme' : 'Switch to the dark theme'
+    );
+    for (const meta of document.querySelectorAll('meta[name="theme-color"]')) {
+      meta.setAttribute('content', themeColor[theme]);
+    }
+  }
+
+  if (toggle && root.classList.contains('can-theme')) {
+    apply(root.dataset.theme === 'light' ? 'light' : 'dark');
+
+    toggle.addEventListener('click', () => {
+      const next = root.dataset.theme === 'dark' ? 'light' : 'dark';
+      // Matching the system preference clears the override rather than pinning
+      // it, so the page keeps following the OS from then on.
+      try {
+        if (next === (system.matches ? 'dark' : 'light')) localStorage.removeItem(KEY);
+        else localStorage.setItem(KEY, next);
+      } catch {}
+      apply(next);
+    });
+
+    system.addEventListener('change', (event) => {
+      const override = stored();
+      if (override !== 'light' && override !== 'dark') apply(event.matches ? 'dark' : 'light');
+    });
+  }
+</script>
+
+</body>
+</html>
