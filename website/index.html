@@ -5,19 +5,36 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Dart Radar: see every Dart process on your Mac</title>
 <meta name="description" content="Every Dart and Flutter process running on your Mac, what each one really is, which project it belongs to, and what it costs you. Native, tiny, free.">
+<link rel="canonical" href="https://dart-radar.birju.dev/">
 <link rel="icon" type="image/png" href="app_icon.png">
 <link rel="apple-touch-icon" href="app_icon.png">
 <meta name="theme-color" content="#fbfbfb" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#121212" media="(prefers-color-scheme: dark)">
-<meta property="og:title" content="Dart Radar">
-<meta property="og:description" content="See every Dart process on your Mac, and where they come from.">
+<!-- Open Graph. Every URL here is absolute: scrapers fetch these without a
+     base URL, so a relative path resolves to nothing and the preview drops
+     its image. -->
 <meta property="og:type" content="website">
-<meta property="og:image" content="public/og.png">
+<meta property="og:site_name" content="Dart Radar">
+<meta property="og:locale" content="en_US">
+<meta property="og:url" content="https://dart-radar.birju.dev/">
+<meta property="og:title" content="Dart Radar: see every Dart process on your Mac">
+<meta property="og:description" content="See every Dart process on your Mac, and where they come from.">
+<meta property="og:image" content="https://dart-radar.birju.dev/public/og.png">
+<meta property="og:image:secure_url" content="https://dart-radar.birju.dev/public/og.png">
+<meta property="og:image:type" content="image/png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta property="og:image:alt" content="Dart Radar: see every Dart process on your Mac, and where they come from">
+
+<!-- X reads its own tags before falling back to og:*, and wants 2:1 rather
+     than the 1.91:1 Open Graph image. -->
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:image" content="public/og.png">
+<meta name="twitter:site" content="@birjuvachhani">
+<meta name="twitter:creator" content="@birjuvachhani">
+<meta name="twitter:title" content="Dart Radar: see every Dart process on your Mac">
+<meta name="twitter:description" content="See every Dart process on your Mac, and where they come from.">
+<meta name="twitter:image" content="https://dart-radar.birju.dev/public/og-twitter.png">
+<meta name="twitter:image:alt" content="Dart Radar: see every Dart process on your Mac, and where they come from">
 <script>
   (function () {
     var root = document.documentElement;
@@ -140,6 +157,7 @@
         <li><a class="app" href="https://club.birju.dev" target="_blank" rel="noopener noreferrer"
                data-name="Club ↗" aria-label="Club, opens in a new tab"><img src="public/app_icons/club.webp" width="128" height="128" alt="" decoding="async"></a></li>
     </ul>
+    <a class="more-apps-link" href="https://birju.dev/apps" target="_blank" rel="noopener noreferrer">and more&hellip;</a>
   </section>
 
 </div>

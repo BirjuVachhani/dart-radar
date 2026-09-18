@@ -325,6 +325,18 @@ a { color: inherit; text-decoration: none; }
 
 .app:hover img { opacity: 0.82; }
 
+.more-apps-link {
+  color: var(--ink-50);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1;
+  white-space: nowrap;
+  border-bottom: 1px solid var(--stroke-ghost);
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.more-apps-link:hover { color: var(--ink); border-bottom-color: var(--accent); }
+
 /* Inert: these ship later, so there is nothing to open yet. They sit in full
    colour with the rest and only grey out under the cursor, at the moment
    someone is about to click and the tooltip says "coming soon". */
