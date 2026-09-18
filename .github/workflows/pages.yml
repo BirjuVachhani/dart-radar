@@ -1,8 +1,12 @@
-# Publish website/ to GitHub Pages.
+# Publish website/ to GitHub Pages, and mirror it to the gh-pages branch.
 #
 # The site is plain HTML, CSS and images, so there is nothing to build: the
 # directory is uploaded as-is. Enable it once under Settings > Pages by setting
 # "Source" to "GitHub Actions"; without that the deploy step fails with a 404.
+#
+# gh-pages holds only the site contents at the repo root, so a host that serves
+# a branch (Vercel, Netlify, Cloudflare Pages) can point at it with no build
+# command and no root directory to configure.
 
 name: Publish website
 
@@ -17,7 +21,8 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  # Read to check out, write to force-push the gh-pages branch.
+  contents: write
   # deploy-pages authenticates to Pages with an OIDC token, not a PAT.
   pages: write
   id-token: write
@@ -55,3 +60,17 @@ jobs:
       - name: Deploy
         id: deployment
         uses: actions/deploy-pages@v4
+
+      # Runs after the upload so the throwaway .git directory created here is
+      # never part of the Pages artifact. gh-pages carries no history: every run
+      # replaces it with a single commit, which is all a branch-deploy host reads.
+      - name: Mirror to gh-pages
+        run: |
+          git init -q -b gh-pages website
+          git -C website config user.name 'github-actions[bot]'
+          git -C website config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git -C website add -A
+          git -C website commit -qm "Publish website from $GITHUB_SHA"
+          git -C website push -qf \
+            "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}" \
+            HEAD:gh-pages
