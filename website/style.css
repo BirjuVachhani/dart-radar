@@ -18,9 +18,10 @@
   --radius-shot: 26px;
   --gutter-x: 32px;
   --gutter-top: 36px;
+  --gutter-bottom: 28px;
   --split-gap: 56px;
   /* Everything above and below the split, so the shot takes the slack. */
-  --shot-budget: 201px;
+  --shot-budget: 234px;
   /* One shot is on screen at a time, so its width is bounded by the height left
      over times its aspect ratio (both shots are 1400x1161), or by 46vw, so the
      copy keeps its half of the page on a wide display. */
@@ -87,7 +88,7 @@ a { color: inherit; text-decoration: none; }
   display: flex;
   flex-direction: column;
   min-height: 100vh;
-  padding: var(--gutter-top) var(--gutter-x) 47px;
+  padding: var(--gutter-top) var(--gutter-x) var(--gutter-bottom);
 }
 
 .main { display: flex; flex-direction: column; flex: 1; }
@@ -277,6 +278,82 @@ a { color: inherit; text-decoration: none; }
 .colophon-link { color: var(--ink-80); transition: color 0.15s; }
 .colophon-link:hover { color: var(--accent); }
 
+/* More apps */
+
+.more-apps {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  flex-shrink: 0;
+  gap: 8px 14px;
+  margin-top: 14px;
+}
+
+.more-apps-label {
+  color: var(--ink-50);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1;
+}
+
+.app-list {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.app-list li { display: flex; }
+
+.app {
+  position: relative;
+  display: block;
+  width: 34px;
+  height: 34px;
+}
+
+.app img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: 8px;
+  transition: opacity 0.15s, filter 0.15s;
+}
+
+.app:hover img { opacity: 0.82; }
+
+/* Inert: these ship later, so there is nothing to open yet. They sit in full
+   colour with the rest and only grey out under the cursor, at the moment
+   someone is about to click and the tooltip says "coming soon". */
+.app-soon { cursor: default; }
+.app-soon:hover img { opacity: 0.5; filter: grayscale(1); }
+
+/* Name on hover, always above the icon. */
+.app::after {
+  content: attr(data-name);
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 5px 8px;
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--surface-ink);
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s;
+}
+
+.app:hover::after,
+.app:focus-visible::after { opacity: 1; }
+
 @media (width <= 999px) {
   .split { flex-direction: column; align-items: center; justify-content: center; }
   .col-copy { flex: none; }
@@ -289,9 +366,9 @@ a { color: inherit; text-decoration: none; }
     --radius-shot: 22px;
     --gutter-x: 20px;
     --gutter-top: 20px;
+    --gutter-bottom: 20px;
     --split-gap: 32px;
   }
-  .page { padding-bottom: 24px; }
   .site-header { margin-bottom: 24px; }
   .cta, .caption { margin-top: 16px; }
   .features { gap: 8px; }

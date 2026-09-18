@@ -569,21 +569,12 @@ notarize: unlock-keychain
 # business producing a feed, and `make dmg` should stay usable without the
 # signing key. `make release` runs this between the build and the upload.
 #
-# Written as a single-item feed (--no-merge), which is a consequence of R2_KEY
-# being a fixed, unversioned object.
-#
-# make-appcast.py can merge the new item into the published feed, and that is
-# right when each release has its own download URL (../moxie versions its DMG,
-# so its older items keep pointing at files that still exist). Here every
-# release overwrites the one object, so a merged feed would carry historical
-# items whose enclosure names a URL that now holds different bytes, with a
-# length and edSignature that no longer describe it. Sparkle only ever acts on
-# the newest applicable item, so those entries are inert rather than harmful,
-# but a signed feed should not assert things that are false.
-#
-# The cost is that Sparkle shows only the newest release's notes when a user
-# skips versions. To get that history back, give each release its own R2 key
-# and drop --no-merge.
+# The feed is a merge, not a rewrite: scripts/make-appcast.py fetches whatever
+# is published at APPCAST_URL and folds the new item into it, so earlier
+# releases keep their notes and re-running a release replaces its own item
+# rather than appending a duplicate. That is only sound because R2_KEY is
+# versioned: each historical item names an object that still holds the exact
+# bytes its edSignature was computed over.
 appcast:
 	@test -f "$(DMG)" || { \
 		echo "ERROR: no DMG at $(DMG)."; \
@@ -612,7 +603,6 @@ appcast:
 		--download-url "$(DMG_URL)" \
 		--feed-url "$(APPCAST_URL)" \
 		--minimum-system-version "$$MIN_OS" \
-		--no-merge \
 		--output "$(APPCAST)"
 
 # ================================ Release ================================
@@ -628,11 +618,17 @@ RELEASE_TITLE				?= $(APP_NAME) $(VERSION)
 # R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY and R2_BUCKET come from
 # config.mk. No defaults: they are live credentials for the download bucket.
 R2_FOLDER					?= dartradar
-# Fixed, unversioned object key: the download URL is permanent, so the website
-# can link it directly and every release simply replaces what it serves. The
-# trade-off is that the bucket keeps no older build to roll back to, and that
-# the object is mutable, hence the short max-age on the upload below.
-R2_KEY						 = $(R2_FOLDER)/$(PRODUCT_SLUG).dmg
+# One immutable object per release. Versioned rather than a single fixed key so
+# that every appcast item keeps pointing at the exact bytes it was signed for:
+# with one shared key each release overwrote the object the previous item named,
+# which left historical entries advertising a length and edSignature that no
+# longer described what was there. It also means the bucket keeps every build,
+# so a bad release can be rolled back by republishing the previous feed.
+#
+# The cost is that the download URL changes every release, so website/index.html
+# has to be updated in step. release-preflight enforces that rather than leaving
+# it to be remembered.
+R2_KEY						 = $(R2_FOLDER)/$(PRODUCT_SLUG)-$(VERSION).dmg
 # The Sparkle feed, at the fixed key every installed copy polls. This has to
 # resolve to APPCAST_URL through the bucket's public hostname, so changing
 # R2_FOLDER also means republishing the app with a new SUFeedURL.
@@ -752,6 +748,25 @@ endif
 	fi
 	@scripts/changelog-section.sh "$(VERSION)" >/dev/null 2>&1 || \
 		echo "WARNING: CHANGELOG.md has no '## $(VERSION)' section; GitHub will generate the notes."
+	@# The download URL carries the version, so the site has to move with each
+	@# release. Checked here because the failure is silent and outlives the
+	@# release: the button keeps working, serving the PREVIOUS version, and the
+	@# only symptom is users quietly installing a build behind the one just
+	@# announced. website/ deploys from this repo on push, so the fix belongs in
+	@# the same commit as the version bump.
+	@SITE=website/index.html; \
+	if [ -f "$$SITE" ]; then \
+		if ! grep -qF '$(DMG_URL)' "$$SITE"; then \
+			echo "ERROR: $$SITE does not link this release's download URL."; \
+			echo ""; \
+			echo "  expected: $(DMG_URL)"; \
+			echo "  found:    $$(grep -oE 'https://[^"]*\.dmg' "$$SITE" | head -1 || echo '(no .dmg link)')"; \
+			echo ""; \
+			echo "  Update the download link in $$SITE and commit it with the version bump."; \
+			exit 1; \
+		fi; \
+		echo "Website download link matches $(VERSION)."; \
+	fi
 	@echo "Preflight OK: releasing $(APP_NAME) $(VERSION) as $(RELEASE_TAG) to $(DMG_URL)."
 
 # Upload the built DMG to the R2 download bucket. Overwrites the object if the
@@ -764,7 +779,6 @@ upload-r2: guard-R2_ACCOUNT_ID guard-R2_ACCESS_KEY_ID guard-R2_SECRET_ACCESS_KEY
 	 R2_SECRET_ACCESS_KEY="$(R2_SECRET_ACCESS_KEY)" \
 	 R2_BUCKET="$(R2_BUCKET)" \
 	 R2_CONTENT_TYPE=application/x-apple-diskimage \
-	 R2_CACHE_CONTROL="public, max-age=300" \
 	 scripts/upload-r2.sh "$(DMG)" "$(R2_KEY)"
 
 # Publish the GitHub release for $(RELEASE_TAG), with the DMG attached.
