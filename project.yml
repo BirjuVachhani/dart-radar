@@ -13,8 +13,8 @@ settings:
     CODE_SIGN_STYLE: Manual
     # Version of record: `make` reads MARKETING_VERSION / CURRENT_PROJECT_VERSION
     # straight out of this file, so bumping here is the whole release bump.
-    MARKETING_VERSION: "1.0.0"
-    CURRENT_PROJECT_VERSION: "1"
+    MARKETING_VERSION: "1.0.1"
+    CURRENT_PROJECT_VERSION: "2"
 packages:
   # Sparkle 2.x, the auto-update framework. Pulled with SPM rather than
   # CocoaPods (which is how ../moxie gets it) because this is a plain Xcode

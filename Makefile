@@ -11,7 +11,7 @@
 # Builds:
 #   make app                          Signed .app -> ./artifacts/Dart Radar.app
 #   make install                      Signed .app -> /Applications
-#   make dmg                          Signed + notarized + stapled .dmg
+#   make dmg                          Signed + notarized + stapled .dmg (and .app)
 #
 # Release:
 #   make release                      Build the DMG and upload it to R2
@@ -19,7 +19,7 @@
 # Options:
 #   VERSION=1.2.3                     Override version (default: project.yml)
 #   BUILD_NUMBER=42                   Override build number (default: project.yml)
-#   SKIP_NOTARIZE=1                   Sign the DMG but skip notarization
+#   SKIP_NOTARIZE=1                   Sign, but skip both notarization passes
 #
 # Maintenance:
 #   make ensure-keychain              Re-add the build keychain to the search
@@ -28,7 +28,8 @@
 
 .PHONY: help prepare setup-keychain ensure-keychain unlock-keychain install-cert \
         grant-access teardown-keychain store-notary generate build-app stage-app sign-app app \
-        install dmg notarize appcast release release-preflight github-release upload-r2 \
+        staple-app install dmg notarize appcast release release-preflight github-release \
+        upload-r2 \
         upload-appcast cleanup
 
 # -------------------------------- Local Configuration --------------------------------
@@ -86,6 +87,9 @@ ARTIFACT_APP				 = $(ARTIFACTS_DIR)/$(APP_NAME).app
 # Kept versioned locally so successive builds do not overwrite each other. The
 # object uploaded to R2 is deliberately NOT versioned; see R2_KEY.
 DMG							 = $(ARTIFACTS_DIR)/$(PRODUCT_SLUG)-$(VERSION).dmg
+# Intermediate archive for the app's own notarization pass: notarytool takes a
+# file and a .app is a directory. Deleted as soon as its ticket is stapled.
+APP_ZIP						 = $(ARTIFACTS_DIR)/$(PRODUCT_SLUG)-app.zip
 
 # -------------------------------- Signing Configuration --------------------------------
 
@@ -246,7 +250,7 @@ help:
 	@echo "  make prepare              Create build keychain + import cert from ./secrets"
 	@echo "  make app                  Signed .app -> $(ARTIFACTS_DIR)"
 	@echo "  make install              Signed .app -> /Applications"
-	@echo "  make dmg                  Signed + notarized .dmg -> $(ARTIFACTS_DIR)"
+	@echo "  make dmg                  Notarized + stapled .app and .dmg -> $(ARTIFACTS_DIR)"
 	@echo "  make release              DMG + appcast -> R2, then a GitHub release"
 	@echo "  make appcast              Sign the built .dmg and write $(APPCAST)"
 	@echo "  make ensure-keychain      Re-add the build keychain to the search list"
@@ -458,9 +462,47 @@ sign-app: stage-app
 	@spctl --assess --type execute --verbose=4 "$(ARTIFACT_APP)" 2>&1 | sed 's/^/  /' || true
 	@echo "Signed and verified."
 
-# Signed .app in $(ARTIFACTS_DIR).
+# Signed .app in $(ARTIFACTS_DIR). Deliberately NOT stapled: that costs a round
+# trip to Apple, and a local build wants to be fast. `make dmg` staples.
 app: sign-app
 	@echo "Signed app: $(ARTIFACT_APP)"
+
+# Notarize the signed .app in its own right and staple the ticket into the
+# bundle, before the DMG is built around it.
+#
+# Why this exists as a separate pass. A notarization ticket is bound to the
+# cdhash it was issued for, and stapling the DMG attaches a ticket for the DMG.
+# An app dragged out of that DMG therefore carries none of its own: Gatekeeper
+# has to ask Apple instead, and a first launch with no network has nothing to
+# fall back on. Verified on the 1.0.0 release, where `stapler validate` on the
+# installed copy reported no ticket. Stapling the app closes that, at the cost
+# of one extra submission per release.
+#
+# Zipped with ditto rather than zip(1): --keepParent preserves the .app as the
+# archive's top-level directory (notarytool rejects a bare Contents/), and
+# --sequesterRsrc keeps the symlink farm inside Sparkle.framework
+# (Versions/Current and friends) intact. zip(1) flattens those symlinks into
+# copies, which breaks the framework and the signature with it.
+#
+# The ticket lands as the file Contents/CodeResources, not an extended
+# attribute, so it survives the `ditto --noextattr` staging in dmg below and the
+# DMG round trip itself. Both were checked before this target was written.
+staple-app: sign-app
+ifndef SKIP_NOTARIZE
+	@echo "Archiving the .app for its own notarization pass..."
+	@rm -f "$(APP_ZIP)"
+	ditto -c -k --sequesterRsrc --keepParent "$(ARTIFACT_APP)" "$(APP_ZIP)"
+	$(MAKE) notarize NOTARIZE_TARGET="$(APP_ZIP)"
+	@rm -f "$(APP_ZIP)"
+	xcrun stapler staple "$(ARTIFACT_APP)"
+	@# The ticket is added to the bundle after it was signed, so prove the
+	@# signature still seals. A stapled app that no longer verifies would be
+	@# strictly worse than one carrying no ticket at all.
+	codesign --verify --deep --strict --verbose=2 "$(ARTIFACT_APP)"
+	@echo "Notarized + stapled app: $(ARTIFACT_APP)"
+else
+	@echo "SKIP_NOTARIZE set, so the .app is signed but NOT notarized or stapled."
+endif
 
 # Install the signed .app into /Applications, replacing any existing copy.
 install: sign-app
@@ -479,14 +521,12 @@ install: sign-app
 # confirm the notarization, so a user who first opens the app offline is told it
 # cannot be verified.
 #
-# ponytail: the ticket is stapled to the DMG only, not to the .app inside it:
-# one notarization round trip instead of two. Gatekeeper accepts the app either
-# way (it is notarized, and the check is online), so the only case this misses
-# is a user who drags the app out of the DMG and then first launches it with no
-# network at all. If that ever matters, submit a zip of the .app first, staple
-# THAT, and build the DMG from the stapled copy; the second submission below
-# stays as it is.
-dmg: sign-app
+# Both the app and the DMG are stapled, which is why a release makes two trips
+# to the notary service: staple-app submits the .app and staples it, then the
+# DMG is built around that stapled copy and submitted in turn. The app's ticket
+# is what covers a user who drags it out of the DMG and first opens it offline;
+# the DMG's covers the download itself.
+dmg: staple-app
 	@echo "Packaging DMG..."
 	mkdir -p "$(ARTIFACTS_DIR)"
 	rm -f "$(DMG)"
@@ -529,10 +569,21 @@ notarize: unlock-keychain
 # business producing a feed, and `make dmg` should stay usable without the
 # signing key. `make release` runs this between the build and the upload.
 #
-# The feed is a merge, not a rewrite: scripts/make-appcast.py fetches whatever
-# is published at APPCAST_URL and folds the new item into it, so earlier
-# releases keep their notes and re-running a release replaces its own item
-# rather than appending a duplicate.
+# Written as a single-item feed (--no-merge), which is a consequence of R2_KEY
+# being a fixed, unversioned object.
+#
+# make-appcast.py can merge the new item into the published feed, and that is
+# right when each release has its own download URL (../moxie versions its DMG,
+# so its older items keep pointing at files that still exist). Here every
+# release overwrites the one object, so a merged feed would carry historical
+# items whose enclosure names a URL that now holds different bytes, with a
+# length and edSignature that no longer describe it. Sparkle only ever acts on
+# the newest applicable item, so those entries are inert rather than harmful,
+# but a signed feed should not assert things that are false.
+#
+# The cost is that Sparkle shows only the newest release's notes when a user
+# skips versions. To get that history back, give each release its own R2 key
+# and drop --no-merge.
 appcast:
 	@test -f "$(DMG)" || { \
 		echo "ERROR: no DMG at $(DMG)."; \
@@ -561,6 +612,7 @@ appcast:
 		--download-url "$(DMG_URL)" \
 		--feed-url "$(APPCAST_URL)" \
 		--minimum-system-version "$$MIN_OS" \
+		--no-merge \
 		--output "$(APPCAST)"
 
 # ================================ Release ================================

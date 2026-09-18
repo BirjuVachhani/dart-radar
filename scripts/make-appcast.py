@@ -300,8 +300,14 @@ def parse_safe_xml(body: bytes) -> ET.Element:
 
 def fetch_feed(url: str, timeout: float) -> ET.Element | None:
     """The <channel> of the currently published feed, or None if unavailable."""
+    # A User-Agent is set because urllib's default ("Python-urllib/3.x") is
+    # refused outright by the CDN in front of artifacts.birju.dev. That 403 is
+    # caught below and reported as "no existing feed", which is indistinguishable
+    # from a genuine first release, so without this the merge silently never
+    # happens and every feed is written fresh.
+    request = urllib.request.Request(url, headers={"User-Agent": "make-appcast.py"})
     try:
-        with urllib.request.urlopen(url, timeout=timeout) as response:
+        with urllib.request.urlopen(request, timeout=timeout) as response:
             # A valid appcast is tiny. Bound the read so a compromised origin
             # cannot exhaust the release runner's memory before XML parsing.
             body = response.read(2 * 1024 * 1024 + 1)

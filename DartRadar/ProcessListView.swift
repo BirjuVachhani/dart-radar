@@ -215,8 +215,11 @@ struct ProcessListView: View {
                                 Image(systemName: "folder")
                                 Text(process.projectName ?? path)
                                     .fontWeight(.medium)
+                                // Full-strength: inside a .link button, a
+                                // .secondary path renders as a muted blue-grey
+                                // that is hard to read at caption size.
                                 Text(process.projectDisplayPath ?? path)
-                                    .foregroundStyle(.secondary)
+                                    .foregroundStyle(.primary)
                                     .truncationMode(.middle)
                                     .redacted(reason: hideProjectPaths ? .placeholder : [])
                             }
@@ -236,7 +239,9 @@ struct ProcessListView: View {
                                 .redacted(reason: hideProjectPaths ? .placeholder : [])
                         }
                         .font(compact ? .caption2 : .caption)
-                        .foregroundStyle(.tertiary)
+                        // Still subordinate to a real project link, but legible:
+                        // .tertiary was fainter again than the path above.
+                        .foregroundStyle(.secondary)
                         .lineLimit(1)
                         .help(hideProjectPaths ? "" : "IDE workspace that owns this process: \(workspace)")
                     }
