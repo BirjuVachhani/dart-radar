@@ -6,7 +6,7 @@ reads the section matching the version being released: it becomes both the
 GitHub release notes and the Sparkle feed item's description, so write each
 entry for the person who will see it in the update prompt.
 
-## 1.0.0
+## 1.0.0 - 2026-09-18
 
 First release.
 
