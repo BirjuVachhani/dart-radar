@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<!-- Source for public/og.png. Rendered once with headless Chrome at 1200x630
+     (see the command in the project notes); not served as part of the site. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="style.css">
+<style>
+  :root { color-scheme: dark; }
+
+  html, body { min-height: 0; }
+
+  body {
+    width: 1200px;
+    height: 100vh;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 44px;
+    padding: 0 88px;
+    background: #121212;
+    color: #fff;
+    overflow: hidden;
+  }
+
+  .brand { display: flex; align-items: center; gap: 18px; height: auto; }
+  .brand img { width: 64px; height: 64px; }
+  .brand span { font-size: 34px; font-weight: 500; letter-spacing: -0.01em; }
+
+  h1 {
+    max-width: 960px;
+    margin: 0;
+    font-size: 64px;
+    font-weight: 400;
+    line-height: 1.08;
+    letter-spacing: -0.025em;
+  }
+
+  .rule { width: 88px; height: 5px; border-radius: 3px; background: #67d84c; }
+</style>
+</head>
+<body>
+  <div class="brand">
+    <img src="app_icon.png" alt="">
+    <span>Dart Radar</span>
+  </div>
+  <h1>See every Dart process on your Mac, and where they come from</h1>
+  <div class="rule"></div>
+</body>
+</html>

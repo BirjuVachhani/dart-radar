@@ -1,0 +1,405 @@
+:root {
+  color-scheme: light dark;
+  --bg: light-dark(#fbfbfb, #121212);
+  --surface: light-dark(#1a1a1a, #323232);
+  --surface-ink: light-dark(#fbfbfb, #fff);
+  --surface-hover: light-dark(#333, #3f3f3f);
+  --surface-ghost-hover: light-dark(#00000008, #ffffff0a);
+  --surface-screenshot: light-dark(#00000008, #ffffff0f);
+  --ink: light-dark(#1a1a1a, #fff);
+  --ink-80: light-dark(#333, #fffc);
+  --ink-60: light-dark(#555, #fff9);
+  --ink-50: light-dark(#666, #ffffff80);
+  --stroke-ghost: light-dark(#d9d9d9, #ffffff1f);
+  --stroke-hover: light-dark(#c4c4c4, #ffffff2e);
+  --accent: light-dark(#3b7d29, #67d84c);
+  --font: -apple-system, BlinkMacSystemFont, "SF Pro Display", system-ui, "Segoe UI", sans-serif;
+  --radius: 12px;
+  --radius-shot: 26px;
+  --gutter-x: 32px;
+  --gutter-top: 36px;
+  --gutter-bottom: 28px;
+  --split-gap: 56px;
+  /* Everything above and below the split, so the shot takes the slack. */
+  --shot-budget: 234px;
+  /* One shot is on screen at a time, so its width is bounded by the height left
+     over times its aspect ratio (both shots are 1400x1161), or by 46vw, so the
+     copy keeps its half of the page on a wide display. */
+  --shots-w: min(46vw, calc((100vh - var(--shot-budget)) * 1.206));
+}
+
+:root[data-theme="light"] { color-scheme: light; }
+:root[data-theme="dark"] { color-scheme: dark; }
+
+/* Without light-dark() there is no second theme to reach, so the toggle stays
+   hidden (see the .can-theme guard) and these flat dark values are all there is. */
+@supports not (color: light-dark(#000, #fff)) {
+  :root,
+  :root[data-theme="light"],
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --bg: #121212;
+    --surface: #323232;
+    --surface-ink: #fff;
+    --surface-hover: #3f3f3f;
+    --surface-ghost-hover: #ffffff0a;
+    --surface-screenshot: #ffffff0f;
+    --ink: #fff;
+    --ink-80: #fffc;
+    --ink-60: #fff9;
+    --ink-50: #ffffff80;
+    --stroke-ghost: #ffffff1f;
+    --stroke-hover: #ffffff2e;
+    --accent: #67d84c;
+  }
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  min-height: 100vh;
+  background: var(--bg);
+  color: var(--ink);
+}
+
+/* The two-column layout is built to fit the viewport, so any scrollbar there is
+   rounding noise. Below that breakpoint the page really does scroll, and hiding
+   the bar would hide the only affordance saying so. */
+@media (width >= 1000px) {
+  html, body { scrollbar-width: none; }
+  html::-webkit-scrollbar, body::-webkit-scrollbar { display: none; }
+}
+
+body {
+  font-family: var(--font);
+  font-size: 16px;
+  font-weight: 400;
+  line-height: 1;
+  -webkit-font-smoothing: antialiased;
+}
+
+a { color: inherit; text-decoration: none; }
+::selection { background: var(--accent); color: var(--bg); }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.page {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  padding: var(--gutter-top) var(--gutter-x) var(--gutter-bottom);
+}
+
+.main { display: flex; flex-direction: column; flex: 1; }
+
+/* Header */
+
+.site-header {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  margin-bottom: 40px;
+}
+
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  height: 38px;
+  color: var(--ink);
+}
+
+.brand-mark { width: 34px; height: 34px; }
+
+.brand-word {
+  font-size: 19px;
+  font-weight: 500;
+  line-height: 1;
+  letter-spacing: -0.01em;
+}
+
+.site-nav { display: flex; align-items: center; gap: 8px; margin-left: auto; }
+
+.pill {
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  width: 107px;
+  height: 40px;
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  background: none;
+  color: var(--ink);
+  font-family: var(--font);
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.pill-ghost:hover { background: var(--surface-ghost-hover); }
+.pill-outline { border-color: var(--stroke-ghost); }
+.pill-outline:hover { border-color: var(--stroke-hover); background: var(--surface-ghost-hover); }
+
+.theme-toggle { display: none; width: 40px; padding: 0; color: var(--ink-80); }
+:root.can-theme .theme-toggle { display: inline-flex; }
+.theme-toggle:hover { color: var(--ink); }
+:root[data-theme="dark"] .theme-toggle .icon-moon,
+:root[data-theme="light"] .theme-toggle .icon-sun { display: none; }
+
+/* Hero */
+
+.hero { display: flex; flex-direction: column; flex-shrink: 0; }
+
+.headline {
+  max-width: 720px;
+  margin: 0;
+  font-size: 48px;
+  font-weight: 400;
+  line-height: 1;
+  letter-spacing: -0.02em;
+}
+
+.cta { display: flex; align-items: center; gap: 0; margin-top: 25px; }
+
+.download {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 40px;
+  padding: 0 12px;
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--surface-ink);
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1;
+  transition: background 0.15s;
+}
+
+.download:hover { background: var(--surface-hover); }
+.download svg { flex-shrink: 0; margin-bottom: 1px; }
+
+.caption {
+  margin: 25px 0 0;
+  color: var(--ink-60);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1;
+}
+
+/* Split: copy on the left, screenshots stacked on the right */
+
+.split {
+  display: flex;
+  align-items: center;
+  gap: var(--split-gap);
+  flex: 1;
+  /* Without this the row refuses to shrink below its content, and the shot
+     height calc below has nothing to push against. */
+  min-height: 0;
+}
+
+.col-copy {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 40px;
+  flex: 1;
+  min-width: 0;
+}
+
+/* Both shots share one grid cell so they can cross-fade in place, with no
+   layout shift and nothing reserved for the one that is currently hidden. */
+.shots {
+  display: grid;
+  flex: none;
+  width: var(--shots-w);
+}
+
+.shot {
+  grid-area: 1 / 1;
+  border-radius: var(--radius-shot);
+  background: var(--surface-screenshot);
+  overflow: hidden;
+  animation: shot-cycle 9s ease-in-out infinite;
+}
+
+/* Half a cycle back, so the second shot is already faded out at t=0 and the
+   loop opens on the first one rather than on a blank frame. */
+.shot:nth-child(2) { animation-delay: -4.5s; }
+
+/* Width is driven, height follows from the image's own width/height attributes,
+   so each screenshot keeps its real aspect ratio and is never cropped. */
+.shot img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+@keyframes shot-cycle {
+  0%, 44% { opacity: 1; }
+  50%, 94% { opacity: 0; }
+  100% { opacity: 1; }
+}
+
+/* Features */
+
+.features {
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  gap: 13px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.feature { font-size: 16px; line-height: 1; }
+.feature-label { padding-right: 6px; color: var(--ink); font-weight: 400; }
+.feature-desc { color: var(--ink-50); font-weight: 400; }
+
+/* Footer */
+
+.colophon {
+  display: flex;
+  align-items: baseline;
+  flex-shrink: 0;
+  gap: 16px;
+  margin-top: 28px;
+  color: var(--ink-50);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1;
+}
+
+.colophon-link { color: var(--ink-80); transition: color 0.15s; }
+.colophon-link:hover { color: var(--accent); }
+
+/* More apps */
+
+.more-apps {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  flex-shrink: 0;
+  gap: 8px 14px;
+  margin-top: 14px;
+}
+
+.more-apps-label {
+  color: var(--ink-50);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1;
+}
+
+.app-list {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.app-list li { display: flex; }
+
+.app {
+  position: relative;
+  display: block;
+  width: 34px;
+  height: 34px;
+}
+
+.app img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: 8px;
+  transition: opacity 0.15s, filter 0.15s;
+}
+
+.app:hover img { opacity: 0.82; }
+
+.more-apps-link {
+  color: var(--ink-50);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1;
+  white-space: nowrap;
+  border-bottom: 1px solid var(--stroke-ghost);
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.more-apps-link:hover { color: var(--ink); border-bottom-color: var(--accent); }
+
+/* Inert: these ship later, so there is nothing to open yet. They sit in full
+   colour with the rest and only grey out under the cursor, at the moment
+   someone is about to click and the tooltip says "coming soon". */
+.app-soon { cursor: default; }
+.app-soon:hover img { opacity: 0.5; filter: grayscale(1); }
+
+/* Name on hover, always above the icon. */
+.app::after {
+  content: attr(data-name);
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 5px 8px;
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--surface-ink);
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s;
+}
+
+.app:hover::after,
+.app:focus-visible::after { opacity: 1; }
+
+@media (width <= 999px) {
+  .split { flex-direction: column; align-items: center; justify-content: center; }
+  .col-copy { flex: none; }
+  /* One column now, so the shot is bounded by the page width, not the height. */
+  .shots { width: min(100%, 560px); justify-self: center; }
+}
+
+@media (width <= 899px) {
+  :root {
+    --radius-shot: 22px;
+    --gutter-x: 20px;
+    --gutter-top: 20px;
+    --gutter-bottom: 20px;
+    --split-gap: 32px;
+  }
+  .site-header { margin-bottom: 24px; }
+  .cta, .caption { margin-top: 16px; }
+  .features { gap: 8px; }
+  .colophon { margin-top: 16px; }
+}
+
+@media (width <= 599px) {
+  :root {
+    --radius-shot: 18px;
+  }
+  .headline { font-size: 24px; line-height: 120%; letter-spacing: -0.015em; }
+  .feature { font-size: 14px; line-height: 140%; }
+  .pill:not(.theme-toggle) { width: auto; padding: 0 16px; }
+  .cta { flex-wrap: wrap; row-gap: 12px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* No cross-fade; the first shot simply stays up. */
+  .shot { animation: none; }
+  .shot:nth-child(2) { opacity: 0; }
+  * { transition-duration: 0.01ms !important; }
+}
