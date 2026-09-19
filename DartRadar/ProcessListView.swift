@@ -109,6 +109,11 @@ struct ProcessListView: View {
             Text("Dart Processes")
                 .font(compact ? .headline : .title3.bold())
             Spacer()
+            // Main window only: the panel needs more width than the menu bar
+            // popup has, and the popup already shows totals below.
+            if !compact {
+                MemoryPanel(memory: monitor.memory, history: monitor.pressureHistory)
+            }
             Button {
                 hideProjectPaths.toggle()
             } label: {
@@ -286,5 +291,140 @@ struct ProcessListView: View {
         }
         .font(compact ? .caption : .callout)
         .monospacedDigit()
+    }
+}
+
+/// Filled pressure history, newest on the right, stretched to fill the width
+/// so it reads at launch instead of after two minutes of samples.
+struct PressureGraph: View {
+    let samples: [Double]
+    let color: Color
+    var capacity = ProcessMonitor.historyLength
+
+    var body: some View {
+        GeometryReader { geometry in
+            let size = geometry.size
+            let points = Array(samples.suffix(capacity))
+            let step = size.width / CGFloat(max(points.count - 1, 1))
+            let point = { (index: Int, value: Double) in
+                CGPoint(x: CGFloat(index) * step,
+                        y: size.height - CGFloat(min(max(value, 0), 1)) * size.height)
+            }
+            if points.count > 1 {
+                Path { path in
+                    path.move(to: CGPoint(x: 0, y: size.height))
+                    for (index, value) in points.enumerated() {
+                        path.addLine(to: point(index, value))
+                    }
+                    path.addLine(to: CGPoint(x: size.width, y: size.height))
+                    path.closeSubpath()
+                }
+                .fill(color.opacity(0.35))
+                // Separate open path: stroking the filled area would outline
+                // its bottom and sides too.
+                Path { path in
+                    for (index, value) in points.enumerated() {
+                        if index == 0 {
+                            path.move(to: point(index, value))
+                        } else {
+                            path.addLine(to: point(index, value))
+                        }
+                    }
+                }
+                .stroke(color, lineWidth: 1)
+            }
+        }
+        .background(alignment: .top) {
+            Rectangle().fill(.secondary.opacity(0.25)).frame(height: 1)
+        }
+        .accessibilityLabel("Memory pressure \(Int((samples.last ?? 0) * 100)) percent")
+    }
+}
+
+/// System memory at a glance, modelled on Activity Monitor's Memory tab.
+struct MemoryPanel: View {
+    let memory: SystemMemory
+    let history: [Double]
+
+    private var pressureColor: Color {
+        switch memory.pressureLevel {
+        case 4: .red
+        case 2: .yellow
+        default: .green
+        }
+    }
+
+    var body: some View {
+        HStack(spacing: 0) {
+            VStack(alignment: .leading, spacing: 3) {
+                Text("Memory Pressure")
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                    .textCase(.uppercase)
+                PressureGraph(samples: history, color: pressureColor)
+                    .frame(width: 118, height: 30)
+            }
+            .padding(.horizontal, 10)
+            Divider()
+            column(labelWidth: 92) {
+                row("Physical Memory", memory.physical)
+                row("Memory Used", memory.used)
+                row("Cached Files", memory.cachedFiles)
+                row("Swap Used", memory.swapUsed)
+            }
+            Divider()
+            column(labelWidth: 80) {
+                row("App Memory", memory.app)
+                row("Wired Memory", memory.wired)
+                row("Compressed", memory.compressed)
+            }
+        }
+        .fixedSize()
+        .padding(.vertical, 6)
+        .background(.quaternary.opacity(0.4), in: RoundedRectangle(cornerRadius: 6))
+        .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(.quaternary))
+    }
+
+    private func column<Content: View>(
+        labelWidth: CGFloat, @ViewBuilder content: () -> Content
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 1) {
+            content()
+        }
+        .font(.caption2)
+        .environment(\.labelWidth, labelWidth)
+        .padding(.horizontal, 10)
+    }
+
+    private func row(_ label: String, _ bytes: UInt64) -> some View {
+        MemoryRow(label: label, value: ProcessMonitor.memoryText(bytes))
+    }
+}
+
+private struct MemoryRow: View {
+    @Environment(\.labelWidth) private var labelWidth
+    let label: String
+    let value: String
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Text(label)
+                .foregroundStyle(.secondary)
+                .frame(width: labelWidth, alignment: .leading)
+            Text(value)
+                .monospacedDigit()
+                .frame(width: 58, alignment: .trailing)
+        }
+    }
+}
+
+private struct LabelWidthKey: EnvironmentKey {
+    static let defaultValue: CGFloat = 90
+}
+
+extension EnvironmentValues {
+    var labelWidth: CGFloat {
+        get { self[LabelWidthKey.self] }
+        set { self[LabelWidthKey.self] = newValue }
     }
 }

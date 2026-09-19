@@ -34,6 +34,12 @@ final class ProcessMonitor {
     /// Heaviest process, used to normalise the per-row memory bars.
     var peakMemoryBytes: UInt64 { processes.map(\.memoryBytes).max() ?? 0 }
 
+    private(set) var memory = SystemMemory()
+    /// Rolling pressure samples for the header graph, newest last.
+    private(set) var pressureHistory: [Double] = []
+    /// 60 samples at the 2s tick, so the graph spans about two minutes.
+    static let historyLength = 60
+
     private var previousCPUNanos: [pid_t: (nanos: UInt64, at: ContinuousClock.Instant)] = [:]
     // Neither a process's project nor its owning IDE changes while it lives,
     // so both are resolved once per pid rather than on every 2s tick.
@@ -56,6 +62,11 @@ final class ProcessMonitor {
     }
 
     func sample() async {
+        memory = SystemMemory.sample()
+        pressureHistory.append(memory.pressure)
+        if pressureHistory.count > Self.historyLength {
+            pressureHistory.removeFirst(pressureHistory.count - Self.historyLength)
+        }
         let output = await Task.detached(priority: .utility) { Self.listProcesses() }.value
         let now = ContinuousClock.now
         let ownPID = pid_t(ProcessInfo.processInfo.processIdentifier)
@@ -531,5 +542,71 @@ final class ProcessMonitor {
                 ?? "-"
             print("\(pid)\t\(name)\t\(String(format: "%.1f%%", cpu))\t\(memoryText(usage.footprintBytes))\t\(location)")
         }
+    }
+}
+
+/// System-wide memory, the numbers Activity Monitor's Memory tab shows.
+struct SystemMemory: Equatable {
+    var physical: UInt64 = 0
+    var app: UInt64 = 0
+    var wired: UInt64 = 0
+    var compressed: UInt64 = 0
+    var cachedFiles: UInt64 = 0
+    var swapUsed: UInt64 = 0
+    /// From the kernel: 1 normal, 2 warning, 4 critical.
+    var pressureLevel: Int32 = 1
+
+    var used: UInt64 { app + wired + compressed }
+
+    /// Share of RAM the kernel cannot hand back on demand. Apple does not
+    /// publish the formula behind the Memory Pressure graph, so this is the
+    /// usual approximation, and it only drives the graph's height. The colour
+    /// comes from `pressureLevel`, which is the kernel's own verdict.
+    var pressure: Double {
+        physical > 0 ? Double(wired + compressed) / Double(physical) : 0
+    }
+
+    static func sample() -> SystemMemory {
+        var stats = vm_statistics64_data_t()
+        var count = mach_msg_type_number_t(
+            MemoryLayout<vm_statistics64_data_t>.stride / MemoryLayout<integer_t>.stride
+        )
+        let result = withUnsafeMutablePointer(to: &stats) { pointer in
+            pointer.withMemoryRebound(to: integer_t.self, capacity: Int(count)) {
+                host_statistics64(mach_host_self(), HOST_VM_INFO64, $0, &count)
+            }
+        }
+        guard result == KERN_SUCCESS else { return SystemMemory() }
+
+        let page = UInt64(vm_kernel_page_size)
+        let internalPages = UInt64(stats.internal_page_count)
+        let purgeable = UInt64(stats.purgeable_count)
+        var memory = SystemMemory()
+        memory.physical = ProcessInfo.processInfo.physicalMemory
+        memory.wired = UInt64(stats.wire_count) * page
+        memory.compressed = UInt64(stats.compressor_page_count) * page
+        memory.cachedFiles = (UInt64(stats.external_page_count) + purgeable) * page
+        // Purgeable pages are counted as internal but are reclaimable, so
+        // Activity Monitor excludes them from App Memory. Guarded rather than
+        // subtracted directly: these are two independently sampled counters.
+        memory.app = (internalPages > purgeable ? internalPages - purgeable : 0) * page
+        memory.swapUsed = swapUsed()
+        memory.pressureLevel = kernelPressureLevel()
+        return memory
+    }
+
+    static func swapUsed() -> UInt64 {
+        var usage = xsw_usage()
+        var size = MemoryLayout<xsw_usage>.stride
+        guard sysctlbyname("vm.swapusage", &usage, &size, nil, 0) == 0 else { return 0 }
+        return usage.xsu_used
+    }
+
+    static func kernelPressureLevel() -> Int32 {
+        var level: Int32 = 1
+        var size = MemoryLayout<Int32>.size
+        guard sysctlbyname("kern.memorystatus_vm_pressure_level", &level, &size, nil, 0) == 0
+        else { return 1 }
+        return level
     }
 }

@@ -371,4 +371,38 @@ final class ProcessMonitorTests: XCTestCase {
             "SDK and cache paths must never be reported as the user's project even when they exist on disk"
         )
     }
+
+    func testUsedSumsTheThreeUnreclaimableKinds() {
+        var memory = SystemMemory()
+        memory.app = 1_000
+        memory.wired = 2_000
+        memory.compressed = 3_000
+        memory.cachedFiles = 9_000
+        XCTAssertEqual(
+            memory.used, 6_000,
+            "Cached files are reclaimable, so Memory Used must exclude them or it overstates pressure"
+        )
+    }
+
+    func testPressureIsZeroRatherThanNaNWhenPhysicalIsUnknown() {
+        var memory = SystemMemory()
+        memory.wired = 1_000
+        XCTAssertEqual(
+            memory.pressure, 0,
+            "A failed host_statistics64 leaves physical at 0; dividing by it would feed NaN into the graph path"
+        )
+    }
+
+    func testLiveSampleIsSelfConsistent() {
+        let memory = SystemMemory.sample()
+        XCTAssertGreaterThan(memory.physical, 0, "Physical memory comes from ProcessInfo and is always known")
+        XCTAssertLessThanOrEqual(
+            memory.used, memory.physical,
+            "Used memory above installed RAM means the page-size or counter maths is wrong"
+        )
+        XCTAssertTrue(
+            [1, 2, 4].contains(memory.pressureLevel),
+            "The kernel reports pressure as 1, 2 or 4; anything else means the sysctl read the wrong width"
+        )
+    }
 }
