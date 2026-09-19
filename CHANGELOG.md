@@ -6,6 +6,14 @@ reads the section matching the version being released: it becomes both the
 GitHub release notes and the Sparkle feed item's description, so write each
 entry for the person who will see it in the update prompt.
 
+## 1.1.0 - 2026-09-19
+
+- Added a system memory dashboard with physical, used, cached, swapped, app,
+  wired, and compressed memory at a glance.
+- Added a rolling memory-pressure history using the same green-to-red block
+  indicators as the CPU and memory columns.
+- Refined the project website, social previews, app gallery, and release tooling.
+
 ## 1.0.1 - 2026-09-19
 
 - Project paths and workspace names in the process list are easier to read.

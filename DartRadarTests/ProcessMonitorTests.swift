@@ -405,4 +405,24 @@ final class ProcessMonitorTests: XCTestCase {
             "The kernel reports pressure as 1, 2 or 4; anything else means the sysctl read the wrong width"
         )
     }
+
+    func testRampKeepsTheOriginalBarColoursAfterBeingGeneralised() {
+        let colours = (0..<10).map { UsageBar.rampColor(Double($0) / 10) }
+        XCTAssertEqual(
+            colours,
+            [.green, .green, .green, .green, .yellow, .yellow, .yellow, .orange, .orange, .red],
+            "Keying the ramp by position rather than index must not shift where the bar changes colour"
+        )
+    }
+
+    func testSegmentsScaleToShorterMetersLikeTheGraphColumns() {
+        XCTAssertEqual(
+            UsageBar.filledSegments(for: 1.0, of: 6), 6,
+            "A full column must fill all six rows, not stay capped at a ten-segment assumption"
+        )
+        XCTAssertEqual(
+            UsageBar.filledSegments(for: 0.01, of: 6), 1,
+            "Any real pressure must light one row so a live sample is never drawn as an empty column"
+        )
+    }
 }

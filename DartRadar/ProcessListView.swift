@@ -27,17 +27,20 @@ struct UsageBar: View {
     var compact = false
 
     /// Anything non-zero lights at least one square, so a live process is never
-    /// rendered as an empty bar, and rounding can never overflow the ten.
-    static func filledSegments(for fraction: Double) -> Int {
+    /// rendered as an empty bar, and rounding can never overflow the total.
+    static func filledSegments(for fraction: Double, of total: Int = 10) -> Int {
         guard fraction > 0, fraction.isFinite else { return 0 }
-        return max(1, min(10, Int((fraction * 10).rounded())))
+        return max(1, min(total, Int((fraction * Double(total)).rounded())))
     }
 
-    private func color(at index: Int) -> Color {
-        switch index {
-        case 0..<4: .green
-        case 4..<7: .yellow
-        case 7..<9: .orange
+    /// The shared green-to-red ramp, keyed by how far along a meter a segment
+    /// sits (0 at the start, approaching 1 at the end) rather than by absolute
+    /// index, so meters of different lengths keep one colour language.
+    static func rampColor(_ position: Double) -> Color {
+        switch position {
+        case ..<0.4: .green
+        case ..<0.7: .yellow
+        case ..<0.9: .orange
         default: .red
         }
     }
@@ -51,7 +54,7 @@ struct UsageBar: View {
                     ForEach(0..<2, id: \.self) { _ in
                         RoundedRectangle(cornerRadius: 1)
                             .fill(segment < filled
-                                  ? color(at: segment)
+                                  ? UsageBar.rampColor(Double(segment) / 10)
                                   : Color.secondary.opacity(0.2))
                             .frame(width: side, height: side)
                     }
@@ -294,48 +297,40 @@ struct ProcessListView: View {
     }
 }
 
-/// Filled pressure history, newest on the right, stretched to fill the width
-/// so it reads at launch instead of after two minutes of samples.
+/// Pressure history in the same block vocabulary as `UsageBar`: one column
+/// per sample, newest on the right, each filled bottom-up through the shared
+/// green-to-red ramp. Columns with no sample yet stay grey, exactly as an
+/// unfilled segment does on a row meter.
 struct PressureGraph: View {
     let samples: [Double]
-    let color: Color
-    var capacity = ProcessMonitor.historyLength
+    var columns = 26
+    var rows = 6
+    private let side: CGFloat = 3
+    private let gap: CGFloat = 1.5
+
+    /// Right-aligned, front-padded with nil so history grows leftwards.
+    private var columnValues: [Double?] {
+        let recent = samples.suffix(columns).map { Optional($0) }
+        return Array(repeating: nil, count: columns - recent.count) + recent
+    }
 
     var body: some View {
-        GeometryReader { geometry in
-            let size = geometry.size
-            let points = Array(samples.suffix(capacity))
-            let step = size.width / CGFloat(max(points.count - 1, 1))
-            let point = { (index: Int, value: Double) in
-                CGPoint(x: CGFloat(index) * step,
-                        y: size.height - CGFloat(min(max(value, 0), 1)) * size.height)
-            }
-            if points.count > 1 {
-                Path { path in
-                    path.move(to: CGPoint(x: 0, y: size.height))
-                    for (index, value) in points.enumerated() {
-                        path.addLine(to: point(index, value))
-                    }
-                    path.addLine(to: CGPoint(x: size.width, y: size.height))
-                    path.closeSubpath()
-                }
-                .fill(color.opacity(0.35))
-                // Separate open path: stroking the filled area would outline
-                // its bottom and sides too.
-                Path { path in
-                    for (index, value) in points.enumerated() {
-                        if index == 0 {
-                            path.move(to: point(index, value))
-                        } else {
-                            path.addLine(to: point(index, value))
-                        }
+        HStack(spacing: gap) {
+            ForEach(Array(columnValues.enumerated()), id: \.offset) { _, value in
+                let filled = UsageBar.filledSegments(for: value ?? 0, of: rows)
+                VStack(spacing: gap) {
+                    ForEach(0..<rows, id: \.self) { row in
+                        // Rows are laid out top-down; invert so the ramp runs
+                        // green at the bottom to red at the top.
+                        let level = rows - 1 - row
+                        RoundedRectangle(cornerRadius: 1)
+                            .fill(level < filled
+                                  ? UsageBar.rampColor(Double(level) / Double(rows))
+                                  : Color.secondary.opacity(0.2))
+                            .frame(width: side, height: side)
                     }
                 }
-                .stroke(color, lineWidth: 1)
             }
-        }
-        .background(alignment: .top) {
-            Rectangle().fill(.secondary.opacity(0.25)).frame(height: 1)
         }
         .accessibilityLabel("Memory pressure \(Int((samples.last ?? 0) * 100)) percent")
     }
@@ -346,11 +341,13 @@ struct MemoryPanel: View {
     let memory: SystemMemory
     let history: [Double]
 
-    private var pressureColor: Color {
+    /// The kernel's own verdict, kept as the tooltip now that the graph
+    /// colours itself from the shared ramp.
+    private var pressureDescription: String {
         switch memory.pressureLevel {
-        case 4: .red
-        case 2: .yellow
-        default: .green
+        case 4: "Memory pressure: critical"
+        case 2: "Memory pressure: warning"
+        default: "Memory pressure: normal"
         }
     }
 
@@ -361,8 +358,8 @@ struct MemoryPanel: View {
                     .font(.caption2.weight(.semibold))
                     .foregroundStyle(.secondary)
                     .textCase(.uppercase)
-                PressureGraph(samples: history, color: pressureColor)
-                    .frame(width: 118, height: 30)
+                PressureGraph(samples: history)
+                    .help(pressureDescription)
             }
             .padding(.horizontal, 10)
             Divider()

@@ -218,7 +218,7 @@ final class ProcessMonitor {
     /// argv[0] arrives as just "/Applications/Dart", whose last component is
     /// literally "dart" and so matches the runtime prefix test below. Keep this
     /// in step with PRODUCT_NAME in project.yml.
-    private static let ownBundleMarker = "Dart Radar.app/Contents/MacOS/"
+    nonisolated private static let ownBundleMarker = "Dart Radar.app/Contents/MacOS/"
 
     nonisolated static func isDartRelated(_ args: [String]) -> Bool {
         guard let exe = args.first else { return false }
